@@ -1,14 +1,32 @@
-const GitHubORG = 'HackYourFuture';
-const HYFReposApiEndPoint = `https://api.github.com/orgs/${GitHubORG}/repos`;
-const HYFMembersApiEndPoint = `https://api.github.com/orgs/${GitHubORG}/members`
-
+const repositoriesList = [];
+const membersList = [];
+const HYFReposApiEndPoint = `https://api.github.com/orgs/HackYourFuture/repos`;
+const HYFMembersApiEndPoint = `https://api.github.com/orgs/HackYourFuture/members`;
 function fetchAPI(url, cb) {
-    let request = new XMLHttpRequest();
-    request.addEventListener('load', function () {
-        cb(JSON.parse(this.responseText));
-    })
-    request.open('GET', url);
-    request.send();
+    return new Promise((resolve, reject) => {
+        let request = new XMLHttpRequest();
+        request.onreadystatechange = () => {
+            let isRequestDone = request.readyState === XMLHttpRequest.DONE;
+            let isRequestSuccess = request.status === 200;
+            if (isRequestDone && isRequestSuccess) {
+                resolve(JSON.parse(request.responseText))
+            } else if (isRequestDone && !isRequestSuccess) {
+                reject({
+                    rejectedStatus: this.status,
+                    rejectedStatusText: request.statusText
+                });
+            }
+        }
+        request.open('GET', url);
+        request.onerror = function () {
+            reject({
+                rejectedStatus: this.status,
+                rejectedStatusText: request.statusText
+            });
+        };
+        request.open('GET', url);
+        request.send();
+    }).then(cb)
 }
 function RenderRepoList(name, url) {
     const ul = document.getElementsByClassName("repos")[0];
@@ -32,13 +50,25 @@ function RenderMembersList(name, url) {
     li.appendChild(a);
     ul.appendChild(li);
 }
-fetchAPI(HYFReposApiEndPoint, function cb(repositoriesList) {
+function fetchRepoList(repositoriesList) {
     let list = repositoriesList.reduce((prev, current) => {
         RenderRepoList(current.name, current.url);
     }, '');
-});
-fetchAPI(HYFMembersApiEndPoint, (membersList) => {
+}
+function fetchMemberList(membersList) {
     let list = membersList.reduce((prev, current) => {
         RenderMembersList(current.login, current.avatar_url);
     }, '');
-});
+}
+
+fetchAPI(HYFReposApiEndPoint)
+    .then(fetchRepoList)
+    .catch(err => {
+        RenderRepoList('Error is: ' + err.rejectedStatusText);
+    });
+
+fetchAPI(HYFMembersApiEndPoint)
+    .then(fetchMemberList)
+    .catch(err => {
+        RenderMembersList('Error is: ' + err.rejectedStatusText);
+    });
